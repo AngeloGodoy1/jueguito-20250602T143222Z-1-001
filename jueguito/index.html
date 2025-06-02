@@ -50,7 +50,7 @@
 <script>
   const SUPABASE_URL = 'https://onbjcfugblwstbrgvvsk.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uYmpjZnVnYmx3c3Ricmd2dnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3MjYxMjksImV4cCI6MjA2NDMwMjEyOX0.yEoM0o1IaJgWu7RlrcB1Odmc2es1-QTXMYvOysRi4Ck';
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const startGameBtn = document.getElementById('startGameBtn');
   const playerNameInput = document.getElementById('playerName');
