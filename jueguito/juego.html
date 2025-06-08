@@ -109,12 +109,18 @@
   <div id="message"></div>
   <button id="restart">Reiniciar Juego</button>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // --- Supabase Config ---
+    const SUPABASE_URL = 'https://onbjcfugblwstbrgvvsk.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uYmpjZnVnYmx3c3Ricmd2dnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3MjYxMjksImV4cCI6MjA2NDMwMjEyOX0.yEoM0o1IaJgWu7RlrcB1Odmc2es1-QTXMYvOysRi4Ck';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // --- Variables del juego ---
     const playerName = localStorage.getItem('playerName') || 'Jugador';
     document.getElementById('playerInfo').textContent = `Jugador: ${playerName}`;
 
     const alphabet = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('');
-    let words = ['AHORCADO', 'COMIDA', 'JUEGO', 'PROGRAMACION', 'PATO'];
     let word = '';
     let guessedLetters = new Set();
     let wrongGuesses = 0;
@@ -134,14 +140,37 @@
       rightLeg: document.getElementById('right-leg'),
     };
 
-    window.addEventListener('load', () => {
-      startGame();
+    // --- Traer palabra aleatoria desde Supabase ---
+    async function getRandomWord() {
+      const { data, error } = await supabaseClient.rpc('palabra_aleatoria');
+      if (error || !data || data.length === 0) {
+        // Si hay error, usar una palabra por defecto
+        console.error('Error al obtener palabra de Supabase, usando fallback.', error);
+        return 'AHORCADO';
+      }
+      return data[0].texto.toUpperCase();
+    }
+
+    // --- Guardar resultado en Supabase ---
+    async function saveResult(status) {
+      const fecha = new Date().toISOString();
+      const { error } = await supabaseClient
+        .from('resultado')
+        .insert([{ jugador: playerName, resultado: status, fecha: fecha, palabra: word }]);
+      if (error) {
+        console.error('Error al guardar resultado:', error);
+      }
+    }
+
+    // --- Lógica principal del juego ---
+    window.addEventListener('load', async () => {
+      await startGame();
     });
 
-    function startGame() {
+    async function startGame() {
       guessedLetters = new Set();
       wrongGuesses = 0;
-      word = words[Math.floor(Math.random() * words.length)];
+      word = await getRandomWord();
       updateHangman();
       displayWord();
       setupAlphabet();
@@ -159,11 +188,12 @@
     }
 
     function setupAlphabet() {
-      alphabetEl.innerHTML = ''; 
+      alphabetEl.innerHTML = '';
       alphabet.forEach(letter => {
         const btn = document.createElement('button');
         btn.textContent = letter;
         btn.className = 'letter-button';
+        btn.disabled = false;
         btn.addEventListener('click', () => handleGuess(letter));
         alphabetEl.appendChild(btn);
       });
@@ -195,9 +225,11 @@
       if (word.split('').every(l => guessedLetters.has(l))) {
         messageEl.textContent = '¡Ganaste!';
         disableAlphabet();
+        saveResult('ganó');
       } else if (wrongGuesses >= maxWrongGuesses) {
         messageEl.textContent = `¡Perdiste! La palabra era: ${word}`;
         disableAlphabet();
+        saveResult('perdió');
       }
     }
 
