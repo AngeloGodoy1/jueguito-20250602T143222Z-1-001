@@ -42,41 +42,40 @@
 </head>
 <body>
   <h1>Juego del Ahorcado</h1>
-  <input type="text" id="playerName" placeholder="Tu nombre" />
+  <input type="text" id="playerName" placeholder="Tu nombre:" />
   <br />
   <button id="startGameBtn">Comenzar Juego</button>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const SUPABASE_URL = 'https://onbjcfugblwstbrgvvsk.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uYmpjZnVnYmx3c3Ricmd2dnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3MjYxMjksImV4cCI6MjA2NDMwMjEyOX0.yEoM0o1IaJgWu7RlrcB1Odmc2es1-QTXMYvOysRi4Ck';
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <script>
+    const SUPABASE_URL = 'https://onbjcfugblwstbrgvvsk.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uYmpjZnVnYmx3c3Ricmd2dnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3MjYxMjksImV4cCI6MjA2NDMwMjEyOX0.yEoM0o1IaJgWu7RlrcB1Odmc2es1-QTXMYvOysRi4Ck';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const startGameBtn = document.getElementById('startGameBtn');
-  const playerNameInput = document.getElementById('playerName');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const playerNameInput = document.getElementById('playerName');
 
-  startGameBtn.addEventListener('click', async () => {
-    const name = playerNameInput.value.trim();
-    if (!name) {
-      alert('Por favor, ingresa tu nombre.');
-      return;
-    }
+    startGameBtn.addEventListener('click', async () => {
+      const name = playerNameInput.value.trim();
+      if (!name) {
+        alert('Por favor, ingresa tu nombre.');
+        return;
+      }
 
-    localStorage.setItem('playerName', name);
+      localStorage.setItem('playerName', name);
 
-    const { data, error } = await supabaseClient
-      .from('jugadores')
-      .insert([{ nombre: name, puntaje: 0 }]);
+      // Opcional: guarda el jugador en la base de datos solo si no existe.
+      // Puedes eliminar este bloque si no necesitas guardar todos los jugadores.
+      const { data, error } = await supabaseClient
+        .from('jugadores')
+        .insert([{ nombre: name, puntaje: 0 }], { upsert: true });
 
-    if (error) {
-      console.error('Error al guardar en Supabase:', error);
-    } else {
-      console.log('Jugador guardado:', data);
-    }
+      if (error) {
+        console.error('Error al guardar en Supabase:', error);
+      }
 
-    window.location.href = 'juego.html';
-  });
-</script>
-
+      window.location.href = 'juego.html';
+    });
+  </script>
 </body>
 </html>
