@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Juego del Ahorcado</title>
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+      font-family: 'Montserrat', sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+    #playerInfo {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+    }
+    #word {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .letter-box {
+      border-bottom: 4px solid #fff;
+      width: 24px;
+      height: 36px;
+      font-size: 2rem;
+      text-align: center;
+      line-height: 36px;
+      font-weight: bold;
+    }
+    #alphabet {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .letter-button {
+      background-color: #2ecc71;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 8px;
+      width: 40px;
+      height: 45px;
+      cursor: pointer;
+    }
+    .letter-button:disabled {
+      background-color: #bdc3c7;
+      color: #7f8c8d;
+      cursor: not-allowed;
+    }
+    #message {
+      font-size: 1.2rem;
+      min-height: 30px;
+      margin-bottom: 10px;
+    }
+    #restart {
+      background-color: #e67e22;
+      color: #fff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    #restart:hover {
+      background-color: #d35400;
+    }
+    #hangman-figure {
+      width: 180px;
+      height: 240px;
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Juego del Ahorcado</h1>
+  <div id="playerInfo"></div>
+  <svg id="hangman-figure" viewBox="0 0 100 125">
+    <line x1="10" y1="120" x2="90" y2="120" stroke="#f4f4f9" stroke-width="4" />
+    <line x1="30" y1="120" x2="30" y2="10" stroke="#f4f4f9" stroke-width="4" />
+    <line x1="30" y1="10" x2="70" y2="10" stroke="#f4f4f9" stroke-width="4" />
+    <line x1="70" y1="10" x2="70" y2="25" stroke="#f4f4f9" stroke-width="3" />
+    <circle id="head" cx="70" cy="35" r="10" stroke="#f4f4f9" stroke-width="3" fill="none" visibility="hidden"/>
+    <line id="body" x1="70" y1="45" x2="70" y2="80" stroke="#f4f4f9" stroke-width="3" visibility="hidden"/>
+    <line id="left-arm" x1="70" y1="50" x2="50" y2="65" stroke="#f4f4f9" stroke-width="3" visibility="hidden"/>
+    <line id="right-arm" x1="70" y1="50" x2="90" y2="65" stroke="#f4f4f9" stroke-width="3" visibility="hidden"/>
+    <line id="left-leg" x1="70" y1="80" x2="50" y2="110" stroke="#f4f4f9" stroke-width="3" visibility="hidden"/>
+    <line id="right-leg" x1="70" y1="80" x2="90" y2="110" stroke="#f4f4f9" stroke-width="3" visibility="hidden"/>
+  </svg>
+  <div id="word"></div>
+  <div id="alphabet"></div>
+  <div id="message"></div>
+  <button id="restart">Reiniciar Juego</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // --- Supabase Config ---
+    const SUPABASE_URL = 'https://onbjcfugblwstbrgvvsk.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uYmpjZnVnYmx3c3Ricmd2dnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3MjYxMjksImV4cCI6MjA2NDMwMjEyOX0.yEoM0o1IaJgWu7RlrcB1Odmc2es1-QTXMYvOysRi4Ck';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // --- Variables del juego ---
+    const playerName = localStorage.getItem('playerName') || 'Jugador';
+    document.getElementById('playerInfo').textContent = `Jugador: ${playerName}`;
+
+    const alphabet = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('');
+    let word = '';
+    let guessedLetters = new Set();
+    let wrongGuesses = 0;
+    const maxWrongGuesses = 6;
+
+    const wordEl = document.getElementById('word');
+    const alphabetEl = document.getElementById('alphabet');
+    const messageEl = document.getElementById('message');
+    const restartBtn = document.getElementById('restart');
+
+    const parts = {
+      head: document.getElementById('head'),
+      body: document.getElementById('body'),
+      leftArm: document.getElementById('left-arm'),
+      rightArm: document.getElementById('right-arm'),
+      leftLeg: document.getElementById('left-leg'),
+      rightLeg: document.getElementById('right-leg'),
+    };
+
+    // --- Traer palabra aleatoria desde Supabase ---
+    async function getRandomWord() {
+      const { data, error } = await supabaseClient.rpc('palabra_aleatoria');
+      if (error || !data || data.length === 0) {
+        // Si hay error, usar una palabra por defecto
+        console.error('Error al obtener palabra de Supabase, usando fallback.', error);
+        return 'AHORCADO';
+      }
+      return data[0].palabra.toUpperCase();
+    }
+
+    // --- Guardar resultado en Supabase ---
+    async function saveResult(status) {
+      const fecha = new Date().toISOString();
+      const { error } = await supabaseClient
+        .from('resultado')
+        .insert([{ jugador: playerName, resultado: status, fecha: fecha, palabra: word }]);
+      if (error) {
+        console.error('Error al guardar resultado:', error);
+      }
+    }
+
+    // --- Lógica principal del juego ---
+    window.addEventListener('load', async () => {
+      await startGame();
+    });
+
+    async function startGame() {
+      guessedLetters = new Set();
+      wrongGuesses = 0;
+      word = await getRandomWord();
+      updateHangman();
+      displayWord();
+      setupAlphabet();
+      messageEl.textContent = '¡Adivina la palabra!';
+    }
+
+    function displayWord() {
+      wordEl.innerHTML = '';
+      word.split('').forEach(letter => {
+        const span = document.createElement('span');
+        span.className = 'letter-box';
+        span.textContent = guessedLetters.has(letter) ? letter : '';
+        wordEl.appendChild(span);
+      });
+    }
+
+    function setupAlphabet() {
+      alphabetEl.innerHTML = '';
+      alphabet.forEach(letter => {
+        const btn = document.createElement('button');
+        btn.textContent = letter;
+        btn.className = 'letter-button';
+        btn.disabled = false;
+        btn.addEventListener('click', () => handleGuess(letter));
+        alphabetEl.appendChild(btn);
+      });
+    }
+
+    function handleGuess(letter) {
+      guessedLetters.add(letter);
+      Array.from(alphabetEl.children).forEach(btn => {
+        if (btn.textContent === letter) btn.disabled = true;
+      });
+      if (word.includes(letter)) {
+        displayWord();
+      } else {
+        wrongGuesses++;
+        updateHangman();
+        messageEl.textContent = `Fallaste. Te quedan ${maxWrongGuesses - wrongGuesses} intentos.`;
+      }
+      checkGameStatus();
+    }
+
+    function updateHangman() {
+      const partsOrder = ['head', 'body', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'];
+      partsOrder.forEach((part, i) => {
+        parts[part].style.visibility = i < wrongGuesses ? 'visible' : 'hidden';
+      });
+    }
+
+    function checkGameStatus() {
+      if (word.split('').every(l => guessedLetters.has(l))) {
+        messageEl.textContent = '¡Ganaste!';
+        disableAlphabet();
+        saveResult('ganó');
+      } else if (wrongGuesses >= maxWrongGuesses) {
+        messageEl.textContent = `¡Perdiste! La palabra era: ${word}`;
+        disableAlphabet();
+        saveResult('perdió');
+      }
+    }
+
+    function disableAlphabet() {
+      Array.from(alphabetEl.children).forEach(btn => btn.disabled = true);
+    }
+
+    restartBtn.addEventListener('click', startGame);
+  </script>
+</body>
+</html>
